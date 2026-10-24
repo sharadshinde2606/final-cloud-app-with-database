@@ -86,7 +86,7 @@ class CourseListView(generic.ListView):
 
 class CourseDetailView(generic.DetailView):
     model = Course
-    template_name = 'onlinecourse/course_detail_bootstrap.html'
+    template_name = 'onlinecourse/course_details_bootstrap.html'
 
 
 def enroll(request, course_id):
@@ -134,3 +134,50 @@ def enroll(request, course_id):
 
 
 
+
+
+from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from .models import Course, Enrollment, Question, Choice, Submission
+
+
+def extract_answers(request):
+    """Collect the selected choice ids from the exam form."""
+    submitted_answers = []
+    for key in request.POST:
+        if key.startswith('choice'):
+            value = request.POST[key]
+            if value.isdigit():
+                submitted_answers.append(int(value))
+    return submitted_answers
+
+
+def submit(request, course_id):
+    """Create a submission for the user's enrollment and show the result."""
+    course = get_object_or_404(Course, pk=course_id)
+    enrollment = get_object_or_404(Enrollment, user=request.user, course=course)
+    submission = Submission.objects.create(enrollment=enrollment)
+    submission.choices.set(extract_answers(request))
+    return HttpResponseRedirect(
+        reverse('onlinecourse:show_exam_result', args=(course.id, submission.id)))
+
+
+def show_exam_result(request, course_id, submission_id):
+    """Calculate the score and render the exam result page."""
+    course = get_object_or_404(Course, pk=course_id)
+    submission = get_object_or_404(Submission, pk=submission_id)
+    selected_ids = [choice.id for choice in submission.choices.all()]
+    questions = course.question_set.all()
+    total = sum(q.grade for q in questions)
+    score = sum(q.grade for q in questions if q.is_get_score(selected_ids))
+    grade = int(score / total * 100) if total else 0
+    context = {
+        'course': course,
+        'selected_ids': selected_ids,
+        'score': score,
+        'total': total,
+        'grade': grade,
+        'passed': grade >= 80,
+    }
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)

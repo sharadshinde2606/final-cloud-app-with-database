@@ -1,0 +1,56 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ course.name }}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<nav class="navbar navbar-dark bg-dark">
+  <a class="navbar-brand" href="/onlinecourse/">Online Course</a>
+  <span class="navbar-text">
+    {% if user.is_authenticated %}Logged in as {{ user.username }}{% else %}Not logged in{% endif %}
+  </span>
+</nav>
+
+<div class="container mt-4">
+  <h2>{{ course.name }}</h2>
+  <p>{{ course.description }}</p>
+
+  <h4>Lessons</h4>
+  <div class="list-group mb-4">
+    {% for lesson in course.lesson_set.all %}
+    <div class="list-group-item">
+      <h5>Lesson {{ lesson.order|add:1 }}: {{ lesson.title }}</h5>
+      <p>{{ lesson.content }}</p>
+    </div>
+    {% empty %}
+    <div class="list-group-item">No lessons available.</div>
+    {% endfor %}
+  </div>
+
+  {% if user.is_authenticated and course.question_set.all %}
+  <h4>Exam</h4>
+  <form action="{% url 'onlinecourse:submit' course.id %}" method="post">
+    {% csrf_token %}
+    {% for question in course.question_set.all %}
+    <div class="card mb-3">
+      <div class="card-header"><b>{{ question.question_text }}</b></div>
+      <div class="card-body">
+        {% for choice in question.choice_set.all %}
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" name="choice_{{ choice.id }}"
+                 id="choice_{{ choice.id }}" value="{{ choice.id }}">
+          <label class="form-check-label" for="choice_{{ choice.id }}">{{ choice.choice_text }}</label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-success">Submit</button>
+  </form>
+  {% endif %}
+</div>
+</body>
+</html>
